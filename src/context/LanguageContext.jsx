@@ -1,27 +1,44 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { translations } from '@/data/translations';
 
-const LanguageContext = createContext();
+const LanguageContext = createContext(null);
 
 export const LanguageProvider = ({ children }) => {
-  const [language, setLanguage] = useState(() => {
-    return localStorage.getItem('language') || 'en';
-  });
+  const [language, setLanguage] = useState('en');
 
   useEffect(() => {
-    localStorage.setItem('language', language);
+    try {
+      const savedLanguage = window.localStorage.getItem('language');
+      if (savedLanguage && translations[savedLanguage]) {
+        setLanguage(savedLanguage);
+      }
+    } catch (error) {
+      console.warn('[LanguageProvider] Could not read saved language:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('language', language);
+    } catch (error) {
+      console.warn('[LanguageProvider] Could not save language:', error);
+    }
   }, [language]);
 
   const toggleLanguage = () => {
     setLanguage((prev) => (prev === 'en' ? 'es' : 'en'));
   };
 
-  const t = translations[language];
+  const value = useMemo(() => ({
+    language,
+    toggleLanguage,
+    t: translations[language] || translations.en,
+  }), [language]);
 
   return (
-    <LanguageContext.Provider value={{ language, toggleLanguage, t }}>
+    <LanguageContext.Provider value={value}>
       {children}
     </LanguageContext.Provider>
   );
