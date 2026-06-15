@@ -5,17 +5,24 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
-const PropertyGallerySection = () => {
+// Fallback placeholders, used only if no images are passed in.
+const PLACEHOLDER_IMAGES = [
+  'https://images.unsplash.com/photo-1676828390434-6ae9782fd194',
+  'https://images.unsplash.com/photo-1564931674174-0601546deb9f',
+  'https://images.unsplash.com/photo-1627616010739-78ee1aacf431',
+  'https://images.unsplash.com/photo-1593321706583-6a76bdbee0f1',
+  'https://images.unsplash.com/photo-1659858358968-2b588aa315ef',
+];
+
+const PropertyGallerySection = ({ images }) => {
   const { t } = useLanguage();
   const [selectedImage, setSelectedImage] = useState(null);
 
-  const images = [
-    "https://images.unsplash.com/photo-1676828390434-6ae9782fd194",
-    "https://images.unsplash.com/photo-1564931674174-0601546deb9f",
-    "https://images.unsplash.com/photo-1627616010739-78ee1aacf431",
-    "https://images.unsplash.com/photo-1593321706583-6a76bdbee0f1",
-    "https://images.unsplash.com/photo-1659858358968-2b588aa315ef"
-  ];
+  // Accept array of URL strings or {url} objects; fall back to placeholders.
+  const gallery =
+    Array.isArray(images) && images.length > 0
+      ? images.map((img) => (typeof img === 'string' ? img : img?.url)).filter(Boolean)
+      : PLACEHOLDER_IMAGES;
 
   return (
     <section className="py-16 bg-gradient-to-b from-[#1a1a1a] to-[#0f0f0f]">
@@ -34,13 +41,13 @@ const PropertyGallerySection = () => {
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {images.map((img, index) => (
+          {gallery.map((img, index) => (
             <motion.div
               key={index}
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
+              transition={{ duration: 0.5, delay: (index % 6) * 0.08 }}
               whileHover={{ scale: 1.03 }}
               className={`relative overflow-hidden rounded-xl cursor-pointer group ${
                 index === 0 ? 'md:col-span-2 lg:col-span-2 md:row-span-2' : ''
@@ -49,12 +56,14 @@ const PropertyGallerySection = () => {
             >
               <img
                 src={img}
-                alt={`Finca Gallery ${index + 1}`}
+                alt={`Galería ${index + 1}`}
+                loading="lazy"
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 min-h-[300px]"
+                onError={(e) => { e.target.style.opacity = 0.3; }}
               />
               <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                 <span className="text-white bg-[#d4af37]/80 px-4 py-2 rounded-full backdrop-blur-sm">
-                  View Fullscreen
+                  {t.fincaPage.viewFullscreen || 'Ver en pantalla completa'}
                 </span>
               </div>
             </motion.div>
@@ -74,6 +83,7 @@ const PropertyGallerySection = () => {
             <button
               className="absolute top-4 right-4 text-white hover:text-[#d4af37] transition-colors p-2"
               onClick={() => setSelectedImage(null)}
+              aria-label="Cerrar"
             >
               <X size={32} />
             </button>
@@ -81,7 +91,7 @@ const PropertyGallerySection = () => {
               initial={{ scale: 0.8 }}
               animate={{ scale: 1 }}
               src={selectedImage}
-              alt="Full view"
+              alt="Vista completa"
               className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl border border-[#d4af37]/20"
               onClick={(e) => e.stopPropagation()}
             />

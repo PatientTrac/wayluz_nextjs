@@ -122,6 +122,28 @@ const PropertyDetailPage = () => {
         videos: Array.isArray(data.videos) ? data.videos : []
       };
       
+      // If this property is backed by a Cloudinary folder, pull its gallery live.
+      // Add a text column `cloudinary_folder` to the properties table and set it
+      // to the folder name (e.g. "CASA WAYNE GRANDE"). When empty, stored images are used.
+      if (data.cloudinary_folder) {
+        try {
+          const cl = await fetch(`/api/cloudinary?folder=${encodeURIComponent(data.cloudinary_folder)}`);
+          if (cl.ok) {
+            const cloud = await cl.json();
+            if (Array.isArray(cloud.images) && cloud.images.length > 0) {
+              standardizedProp.images = cloud.images; // Cloudinary folder is the source of truth
+            }
+            if (Array.isArray(cloud.videos) && cloud.videos.length > 0) {
+              standardizedProp.videos = [...standardizedProp.videos, ...cloud.videos];
+            }
+          } else {
+            console.warn(`[PropertyDetailPage] Cloudinary route returned ${cl.status}; using stored images.`);
+          }
+        } catch (e) {
+          console.warn('[PropertyDetailPage] Cloudinary folder load failed; using stored images.', e);
+        }
+      }
+
       console.log('[PropertyDetailPage] Standardized Data:', standardizedProp);
       setProperty(standardizedProp);
 

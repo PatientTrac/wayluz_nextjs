@@ -7,8 +7,6 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, MapPin, Phone, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
-import { getProperty } from '@/data/propertyManager';
-import PriceDisplay from '@/components/PriceDisplay';
 
 import PropertyFeaturesSection from '@/components/finca/PropertyFeaturesSection';
 import PropertyGallerySection from '@/components/finca/PropertyGallerySection';
@@ -16,27 +14,33 @@ import VideoGallerySection from '@/components/finca/VideoGallerySection';
 import CallToActionSection from '@/components/finca/CallToActionSection';
 import VisitsCounter from '@/components/VisitsCounter';
 
+// Which Cloudinary folder this showcase pulls from.
+const CLOUDINARY_FOLDER = 'CASA WAYNE GRANDE';
+const FALLBACK_HERO = 'https://images.unsplash.com/photo-1694666655068-322be960e718';
+
 const FincaAerialViewPage = () => {
   const { t } = useLanguage();
-  const [fincaProperty, setFincaProperty] = useState(null);
   const [galleryImages, setGalleryImages] = useState([]);
+  const [videos, setVideos] = useState([]);
 
   useEffect(() => {
-    // The fixed ID for the finca property in propertyManager
-    const FINCA_ID = 1705425678;
-    const property = getProperty(FINCA_ID);
-    setFincaProperty(property);
-
-    if (property && property.images) {
-      // Sort images to show featured first for the hero background or gallery
-      const sortedImages = [...property.images]
-        .sort((a, b) => (b.featured === true) - (a.featured === true))
-        .map(img => img.url);
-      setGalleryImages(sortedImages);
-    }
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/cloudinary?folder=${encodeURIComponent(CLOUDINARY_FOLDER)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!active) return;
+        setGalleryImages(Array.isArray(data.images) ? data.images : []);
+        setVideos(Array.isArray(data.videos) ? data.videos : []);
+      } catch (err) {
+        console.error('Failed to load Cloudinary showcase:', err);
+      }
+    })();
+    return () => { active = false; };
   }, []);
 
-  const heroImage = galleryImages.length > 0 ? galleryImages[0] : 'https://images.unsplash.com/photo-1694666655068-322be960e718';
+  const heroImage = galleryImages.length > 0 ? galleryImages[0] : FALLBACK_HERO;
 
   return (
     <>
@@ -59,15 +63,15 @@ const FincaAerialViewPage = () => {
         {/* Hero Section */}
         <section className="relative h-[80vh] overflow-hidden">
           <div className="absolute inset-0">
-            <img 
-              src={heroImage} 
-              alt="Spectacular FINCA Estate" 
+            <img
+              src={heroImage}
+              alt="Casa Wayne Grande"
               className="w-full h-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-b from-[#0f0f0f]/30 via-[#0f0f0f]/10 to-[#0f0f0f]" />
-            <div className="absolute inset-0 bg-black/20" /> {/* Extra overlay for text readability */}
+            <div className="absolute inset-0 bg-black/20" />
           </div>
-          
+
           <div className="relative h-full container mx-auto px-4 flex flex-col justify-end pb-20">
             <motion.div
               initial={{ opacity: 0, y: 50 }}
@@ -86,9 +90,9 @@ const FincaAerialViewPage = () => {
                   <p className="text-xl md:text-2xl text-gray-200 max-w-3xl drop-shadow-md leading-relaxed mb-6">
                     {t.fincaPage.description}
                   </p>
-                  
+
                   <div className="flex flex-wrap gap-4">
-                     <a href="tel:+573209937784">
+                    <a href="tel:+573209937784">
                       <Button className="bg-[#d4af37] hover:bg-[#c9a961] text-[#0f0f0f] font-semibold h-auto py-3 px-6">
                         <Phone className="mr-2" size={20} />
                         {t.contact.callNow}
@@ -101,13 +105,7 @@ const FincaAerialViewPage = () => {
                       </Button>
                     </a>
                   </div>
-
                 </div>
-                {fincaProperty && (
-                   <div className="bg-black/40 backdrop-blur-md p-6 rounded-xl border border-[#d4af37]/30">
-                      <PriceDisplay priceCOP={fincaProperty.priceCOP} priceUSD={fincaProperty.priceUSD} size="large" />
-                   </div>
-                )}
               </div>
             </motion.div>
           </div>
@@ -115,9 +113,8 @@ const FincaAerialViewPage = () => {
 
         {/* Feature Sections */}
         <PropertyFeaturesSection />
-        {/* Pass galleryImages to the section if it supports props, otherwise it likely relies on internal logic or context, but updating the hero above ensures the main image is correct */}
         <PropertyGallerySection images={galleryImages} />
-        <VideoGallerySection />
+        <VideoGallerySection videos={videos} />
         <CallToActionSection />
       </div>
 
