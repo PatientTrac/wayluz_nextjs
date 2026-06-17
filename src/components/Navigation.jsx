@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from '@/lib/routerAdapter';
 import { motion } from 'framer-motion';
-import { Menu, X, Globe, Shield } from 'lucide-react';
+import { Menu, X, Globe } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import EditModeToggle from '@/components/EditModeToggle';
 import Logo from '@/components/Logo';
@@ -18,10 +18,9 @@ const Navigation = () => {
     { name: t.nav.about, path: '/about' },
     { name: t.nav.properties, path: '/properties' },
     { name: t.nav.contact, path: '/contact' },
-    { name: 'Logon', path: '/admin', icon: Shield },
   ];
 
-  const isActive = (path) => location.pathname === path || (path === '/admin' && location.pathname.startsWith('/admin'));
+  const isActive = (path) => location.pathname === path;
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0f0f0f]/95 backdrop-blur-md border-b border-[#d4af37]/20">
