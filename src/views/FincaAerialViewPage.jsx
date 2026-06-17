@@ -9,12 +9,11 @@ import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
 
 import PropertyFeaturesSection from '@/components/finca/PropertyFeaturesSection';
-import PropertyGallerySection from '@/components/finca/PropertyGallerySection';
 import VideoGallerySection from '@/components/finca/VideoGallerySection';
 import CallToActionSection from '@/components/finca/CallToActionSection';
 import VisitsCounter from '@/components/VisitsCounter';
 
-// Which Cloudinary folder this showcase pulls from.
+// Hero photo still comes from this Cloudinary folder.
 const CLOUDINARY_FOLDER = 'CASA WAYNE GRANDE';
 const FALLBACK_HERO = 'https://images.unsplash.com/photo-1694666655068-322be960e718';
 
@@ -23,6 +22,7 @@ const FincaAerialViewPage = () => {
   const [galleryImages, setGalleryImages] = useState([]);
   const [videos, setVideos] = useState([]);
 
+  // Hero image — still pulled from Cloudinary.
   useEffect(() => {
     let active = true;
     (async () => {
@@ -32,9 +32,28 @@ const FincaAerialViewPage = () => {
         const data = await res.json();
         if (!active) return;
         setGalleryImages(Array.isArray(data.images) ? data.images : []);
-        setVideos(Array.isArray(data.videos) ? data.videos : []);
       } catch (err) {
-        console.error('Failed to load Cloudinary showcase:', err);
+        console.error('Failed to load Cloudinary hero:', err);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  // Video tour — all videos from the YouTube channel.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/youtube');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!active) return;
+        const urls = Array.isArray(data.videos)
+          ? data.videos.map((v) => v.embedUrl).filter(Boolean)
+          : [];
+        setVideos(urls);
+      } catch (err) {
+        console.error('Failed to load YouTube videos:', err);
       }
     })();
     return () => { active = false; };
@@ -113,7 +132,7 @@ const FincaAerialViewPage = () => {
 
         {/* Feature Sections */}
         <PropertyFeaturesSection />
-        <PropertyGallerySection images={galleryImages} />
+        {/* Photo gallery removed — replaced by the YouTube video tour below. */}
         <VideoGallerySection videos={videos} />
         <CallToActionSection />
       </div>
