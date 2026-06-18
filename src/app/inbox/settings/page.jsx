@@ -11,6 +11,7 @@
 import { useEffect, useState } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { supabase } from '@/lib/customSupabaseClient';
+import Logo from '@/components/Logo';
 
 const FIELDS = [
   ['display_name', 'Display name', 'WayLuz Inversiones'],
@@ -64,6 +65,7 @@ function SettingsForm() {
 
   return (
     <div style={S.wrap}>
+      <div style={{ marginBottom: 18 }}><Logo showText className="h-9 w-9" /></div>
       <h1 style={S.h1}>WhatsApp settings</h1>
       {FIELDS.map(([k, label, ph]) => (
         <label key={k} style={S.row}>
@@ -97,7 +99,7 @@ export default function WhatsAppSettingsPage() {
   return (<ProtectedRoute><SettingsForm /></ProtectedRoute>);
 }
 
-const GOLD = '#C9A24B';
+const GOLD = '#d4af37';
 const S = {
   wrap: { maxWidth: 560, margin: '24px auto', padding: 24, background: '#0d0d10', color: '#eee', border: `1px solid ${GOLD}33`, borderRadius: 12 },
   h1: { color: GOLD, fontSize: 20, fontWeight: 500, margin: '0 0 20px' },

@@ -1,21 +1,26 @@
 'use client';
 
-// Admin-only WhatsApp inbox page.
-// NOTE: adjust the two imports below to your repo's actual paths/exports —
-//   ProtectedRoute  : WayLuz's existing auth guard
-//   supabase        : WayLuz's configured browser client (customSupabaseClient)
-// If your custom router intercepts /inbox, register <WhatsAppInbox> the same
-// way your other admin views are mounted instead of relying on this file.
+// Admin-only WhatsApp inbox, branded with WayLuz's home-page logo + gold.
+// Adjust the imports to your repo's paths if they differ.
 
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { supabase } from '@/lib/customSupabaseClient';
 import WhatsAppInbox from '@/components/WhatsAppInbox';
+import Logo from '@/components/Logo';
 
 export default function InboxPage() {
   return (
     <ProtectedRoute>
       <div style={{ padding: 24 }}>
-        <WhatsAppInbox supabase={supabase} />
+        <WhatsAppInbox
+          supabase={supabase}
+          branding={{
+            logo: <Logo showText className="h-9 w-9" />,
+            name: 'WayLuz',
+            accent: '#d4af37',
+            bg: '#0d0d10',
+          }}
+        />
       </div>
     </ProtectedRoute>
   );
