@@ -76,6 +76,10 @@ export const translations = {
       emailUs: 'Email Us',
       visitUs: 'Visit Us',
       callUs: 'Call Us',
+      whatsappTitle: 'WhatsApp',
+      whatsappDesc: 'Text or call us anytime',
+      whatsappText: 'Send a message',
+      whatsappCall: 'Call',
       emailUsTitle: 'Email Us',
       sendMessage: 'Send Message'
     },
@@ -253,6 +257,10 @@ export const translations = {
       emailUs: 'Envíanos un Email',
       visitUs: 'Visítanos',
       callUs: 'Llámanos',
+      whatsappTitle: 'WhatsApp',
+      whatsappDesc: 'Escríbenos o llámanos cuando quieras',
+      whatsappText: 'Enviar un mensaje',
+      whatsappCall: 'Llamar',
       emailUsTitle: 'Escríbenos',
       sendMessage: 'Enviar Mensaje'
     },

@@ -5,7 +5,6 @@ import { Link, useLocation } from '@/lib/routerAdapter';
 import { motion } from 'framer-motion';
 import { Menu, X, Globe } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
-import EditModeToggle from '@/components/EditModeToggle';
 import Logo from '@/components/Logo';
 
 const Navigation = () => {
@@ -61,9 +60,6 @@ const Navigation = () => {
                 <Globe size={16} />
                 <span>{language === 'en' ? 'ES' : 'EN'}</span>
               </button>
-
-              {/* Edit Mode Toggle - Only visible when authenticated */}
-              <EditModeToggle />
             </div>
           </div>
 
@@ -108,10 +104,6 @@ const Navigation = () => {
                 <Globe size={16} />
                 <span>Switch to {language === 'en' ? 'Español' : 'English'}</span>
               </button>
-
-              <div className="pt-2 border-t border-[#d4af37]/10">
-                 <EditModeToggle />
-              </div>
             </div>
           </motion.div>
         )}

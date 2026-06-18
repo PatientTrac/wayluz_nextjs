@@ -3,11 +3,12 @@
 import React from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { MapPin, Phone, Mail, Clock, Facebook, Linkedin, Twitter, Instagram } from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, Facebook, Linkedin, Twitter, Instagram, MessageCircle } from 'lucide-react';
 import ContactForm from '@/components/ContactForm';
 import { useLanguage } from '@/context/LanguageContext';
 import { Button } from '@/components/ui/button';
 import VisitsCounter from '@/components/VisitsCounter';
+import { whatsappLink, PHONE_TEL, PHONE_DISPLAY } from '@/lib/contact';
 
 const ContactPage = () => {
   const { t } = useLanguage();
@@ -20,10 +21,24 @@ const ContactPage = () => {
       color: '#FFD700'
     },
     {
-      icon: Phone,
-      title: t.contact.callUs,
-      details: [t.contact.phone],
-      color: '#d4af37'
+      icon: MessageCircle,
+      title: t.contact.whatsappTitle,
+      details: [t.contact.whatsappDesc, PHONE_DISPLAY],
+      color: '#25D366',
+      actions: [
+        {
+          label: t.contact.whatsappText,
+          href: whatsappLink(),
+          icon: MessageCircle,
+          external: true
+        },
+        {
+          label: t.contact.whatsappCall,
+          href: `tel:${PHONE_TEL}`,
+          icon: Phone,
+          external: false
+        }
+      ]
     },
     {
       icon: Mail,
@@ -91,6 +106,23 @@ const ContactPage = () => {
                       {detail}
                     </p>
                   ))}
+                  {info.actions && (
+                    <div className="mt-4 flex flex-col sm:flex-row gap-2 w-full">
+                      {info.actions.map((action, aIdx) => (
+                        <a
+                          key={aIdx}
+                          href={action.href}
+                          {...(action.external
+                            ? { target: '_blank', rel: 'noopener noreferrer' }
+                            : {})}
+                          className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold border-2 border-[#d4af37]/40 text-[#d4af37] hover:bg-[#d4af37] hover:text-[#0f0f0f] transition-all"
+                        >
+                          <action.icon size={16} />
+                          {action.label}
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </motion.div>
               ))}
             </div>
@@ -179,41 +211,6 @@ const ContactPage = () => {
           </div>
         </section>
 
-        {/* Schedule Virtual Tour Section */}
-        <section className="py-16 bg-gradient-to-r from-[#d4af37]/10 to-[#c9a961]/10">
-          <div className="container mx-auto px-4">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="max-w-3xl mx-auto text-center"
-            >
-              <h2 className="text-3xl md:text-4xl font-bold mb-6">
-                Schedule a Virtual Tour
-              </h2>
-              <p className="text-gray-400 text-lg mb-8 max-w-2xl mx-auto">
-                Can't visit in person? No problem! Schedule a virtual tour with one of our expert agents and explore properties from the comfort of your home.
-              </p>
-              <div className="bg-[#1a1a1a] border-2 border-[#d4af37]/30 rounded-xl p-8">
-                <p className="text-gray-400 mb-6">
-                  Virtual tours available Monday - Saturday. Select your preferred date and time, and we'll send you a confirmation with meeting details.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <input
-                    type="date"
-                    className="px-4 py-3 bg-[#0f0f0f] border-2 border-[#d4af37]/30 rounded-lg text-white focus:outline-none focus:border-[#d4af37] transition-colors"
-                  />
-                  <input
-                    type="time"
-                    className="px-4 py-3 bg-[#0f0f0f] border-2 border-[#d4af37]/30 rounded-lg text-white focus:outline-none focus:border-[#d4af37] transition-colors"
-                  />
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </section>
-
         {/* CTA Section */}
         <section className="py-16 bg-[#0f0f0f]">
           <div className="container mx-auto px-4 text-center">
@@ -230,8 +227,14 @@ const ContactPage = () => {
                 Our team of experts is ready to guide you through every step of your real estate investment journey.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="tel:+573209937784" className="inline-block">
-                  <Button className="bg-[#d4af37] hover:bg-[#c9a961] text-[#0f0f0f] font-semibold px-10 py-6 text-lg rounded-full transition-all hover:scale-105 shadow-lg h-auto flex items-center gap-2">
+                <a href={whatsappLink()} target="_blank" rel="noopener noreferrer" className="inline-block">
+                  <Button className="bg-[#25D366] hover:bg-[#1ebe5d] text-white font-semibold px-10 py-6 text-lg rounded-full transition-all hover:scale-105 shadow-lg h-auto flex items-center gap-2">
+                    <MessageCircle size={24} />
+                    {t.contact.whatsappText}
+                  </Button>
+                </a>
+                <a href={`tel:${PHONE_TEL}`} className="inline-block">
+                  <Button variant="outline" className="border-2 border-[#d4af37] text-[#d4af37] hover:bg-[#d4af37] hover:text-[#0f0f0f] font-semibold px-10 py-6 text-lg rounded-full transition-all hover:scale-105 h-auto flex items-center gap-2">
                     <Phone size={24} />
                     {t.contact.callNow}
                   </Button>

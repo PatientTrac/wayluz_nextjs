@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { useParams, Link } from '@/lib/routerAdapter';
 import { motion } from 'framer-motion';
-import { Bed, Bath, Maximize, MapPin, Calendar, Home as HomeIcon, ArrowLeft, Phone, Mail, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Bed, Bath, Maximize, MapPin, Calendar, Home as HomeIcon, ArrowLeft, Phone, Mail, RefreshCw, AlertTriangle, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import PropertyGallery from '@/components/PropertyGallery';
@@ -15,6 +15,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import VideoGallerySection from '@/components/finca/VideoGallerySection';
 import { createSlug } from '@/lib/slugUtils';
 import VisitsCounter from '@/components/VisitsCounter';
+import { whatsappLink, PHONE_TEL } from '@/lib/contact';
 
 const PropertyDetailPage = () => {
   const { slug } = useParams();
@@ -168,12 +169,6 @@ const PropertyDetailPage = () => {
     }
   };
 
-  const handleScheduleTour = () => {
-    toast({
-      title: "Feature Coming Soon",
-      description: "Online scheduling is currently under development. Please contact us via phone or email.",
-    });
-  };
 
   if (loading) {
     return (
@@ -385,15 +380,21 @@ const PropertyDetailPage = () => {
                     <p className="text-gray-400 text-sm mb-6">Contact our agents to schedule a private viewing.</p>
                     
                     <div className="space-y-3">
-                      <Button
-                        onClick={handleScheduleTour}
-                        className="w-full bg-[#d4af37] hover:bg-[#c9a961] text-[#0f0f0f] font-bold py-6 h-auto text-lg shadow-lg shadow-[#d4af37]/20"
+                      <a
+                        href={whatsappLink(`Hi WayLuz, I'm interested in "${property.name}". Could you share more details?`)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block w-full"
                       >
-                        <Calendar size={20} className="mr-2" />
-                        {t.propertyDetail.scheduleTour}
-                      </Button>
-                      
-                      <a href="tel:+573209937784" className="block w-full">
+                        <Button
+                          className="w-full bg-[#25D366] hover:bg-[#1ebe5d] text-white font-bold py-6 h-auto text-lg shadow-lg shadow-[#25D366]/20"
+                        >
+                          <MessageCircle size={20} className="mr-2" />
+                          {t.contact.whatsappText}
+                        </Button>
+                      </a>
+
+                      <a href={`tel:${PHONE_TEL}`} className="block w-full">
                         <Button
                           variant="outline"
                           className="w-full border border-gray-600 hover:border-[#d4af37] text-gray-200 hover:text-[#d4af37] hover:bg-[#1a1a1a] font-semibold py-6 h-auto transition-all"

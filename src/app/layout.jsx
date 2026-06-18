@@ -2,6 +2,7 @@ import './globals.css';
 import Providers from './providers';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
+import WhatsAppButton from '@/components/WhatsAppButton';
 
 export const metadata = {
   title: 'WayLuz Inversion SAS',
@@ -17,6 +18,7 @@ export default function RootLayout({ children }) {
             <Navigation />
             <main className="flex-grow">{children}</main>
             <Footer />
+            <WhatsAppButton />
           </div>
         </Providers>
       </body>

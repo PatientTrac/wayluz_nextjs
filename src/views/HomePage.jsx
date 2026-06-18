@@ -4,7 +4,7 @@ import React from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Link } from '@/lib/routerAdapter';
-import { TrendingUp, Home, Palmtree, Globe, ArrowRight, Phone, Mail, Shield } from 'lucide-react';
+import { TrendingUp, Home, Palmtree, Globe, ArrowRight, Phone, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
 import Logo from '@/components/Logo';
@@ -211,14 +211,6 @@ const HomePage = () => {
               <Link to="/contact">
                 <Button variant="outline" className="border-2 border-[#d4af37] text-[#d4af37] hover:bg-[#d4af37] hover:text-[#0f0f0f] font-semibold px-10 py-6 text-lg rounded-full transition-all hover:scale-105 h-auto">
                   {t.home.scheduleBtn}
-                </Button>
-              </Link>
-              
-              {/* Added Admin Panel Link */}
-              <Link to="/admin">
-                <Button variant="ghost" className="text-gray-400 hover:text-[#d4af37] hover:bg-[#d4af37]/10 font-medium px-6 py-6 text-lg rounded-full transition-all h-auto flex items-center gap-2">
-                  <Shield size={18} />
-                  Admin Panel
                 </Button>
               </Link>
             </div>

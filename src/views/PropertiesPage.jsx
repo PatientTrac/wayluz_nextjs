@@ -3,12 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { Link } from '@/lib/routerAdapter';
 import PropertyCard from '@/components/PropertyCard';
 import { useLanguage } from '@/context/LanguageContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, AlertCircle, Shield } from 'lucide-react';
+import { Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 import VisitsCounter from '@/components/VisitsCounter';
 
 const PropertiesPage = () => {
@@ -62,16 +61,6 @@ const PropertiesPage = () => {
         {/* Hero Section */}
         <section className="py-16 bg-gradient-to-b from-[#1a1a1a] to-[#0f0f0f]">
           <div className="container mx-auto px-4 relative">
-            
-            {/* Admin Link Overlay */}
-            <div className="absolute top-0 right-4">
-              <Link to="/admin">
-                <Button variant="ghost" size="sm" className="text-xs text-gray-500 hover:text-[#d4af37] flex items-center gap-1">
-                  <Shield size={12} />
-                  Admin
-                </Button>
-              </Link>
-            </div>
 
             <motion.div
               initial={{ opacity: 0, y: 30 }}
