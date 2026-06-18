@@ -1,8 +1,6 @@
 // /api/whatsapp/send  (POST)
 // Body: { to: "573209937784", body: "Hola ..." }
-//
-// Sends a free-text reply via the Cloud API and records it in the inbox.
-// Guarded so only your logged-in agents can call it.
+// Auth: caller must present a valid Supabase session as a Bearer token.
 
 import { NextResponse } from 'next/server';
 import { sendText } from '@/lib/whatsapp/client';
@@ -11,11 +9,20 @@ import { supabaseAdmin } from '@/lib/whatsapp/supabaseAdmin';
 export const runtime = 'nodejs';
 
 export async function POST(req) {
-  // --- AUTH GATE ---------------------------------------------------------
-  // Replace with your project's real check. On WayLuz, verify the Supabase
-  // auth session (the logged-in admin). Quick stop-gap: a shared header secret.
-  const authed = req.headers.get('x-inbox-secret') === process.env.INBOX_API_SECRET;
-  if (!authed) return new Response('Unauthorized', { status: 401 });
+  // --- AUTH: verify the caller's Supabase session -----------------------
+  const authHeader = req.headers.get('authorization') || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return new Response('Unauthorized', { status: 401 });
+
+  const db = supabaseAdmin();
+  const { data: auth, error: authErr } = await db.auth.getUser(token);
+  if (authErr || !auth?.user) return new Response('Unauthorized', { status: 401 });
+
+  // Optional: restrict to specific admins instead of any signed-in user.
+  // const ALLOWED = (process.env.INBOX_ADMIN_EMAILS || '').split(',').map(s => s.trim());
+  // if (ALLOWED.length && !ALLOWED.includes(auth.user.email)) {
+  //   return new Response('Forbidden', { status: 403 });
+  // }
 
   let to, body;
   try {
@@ -25,9 +32,7 @@ export async function POST(req) {
   }
   if (!to || !body) return new Response('Missing to/body', { status: 400 });
 
-  const db = supabaseAdmin();
-
-  // Optional: block free-text outside the 24h window (would need a template instead).
+  // Block free-text outside the 24h window (would need a template instead).
   const { data: contact } = await db.from('wa_contacts').select('id').eq('wa_id', to).single();
   if (contact) {
     const { data: convo } = await db
@@ -43,7 +48,6 @@ export async function POST(req) {
     }
   }
 
-  // Send via Meta
   let result;
   try {
     result = await sendText(to, body);
@@ -52,7 +56,6 @@ export async function POST(req) {
   }
   const wamid = result?.messages?.[0]?.id;
 
-  // Persist outbound (mirror the contact/conversation upsert so the thread updates live)
   const { data: c } = await db
     .from('wa_contacts')
     .upsert({ wa_id: to }, { onConflict: 'wa_id' })

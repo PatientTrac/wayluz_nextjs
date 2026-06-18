@@ -10,7 +10,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-export default function WhatsAppInbox({ supabase, inboxSecret }) {
+export default function WhatsAppInbox({ supabase }) {
   const [conversations, setConversations] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -74,9 +74,13 @@ export default function WhatsAppInbox({ supabase, inboxSecret }) {
     if (!draft.trim() || !active) return;
     setSending(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/api/whatsapp/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-inbox-secret': inboxSecret },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token || ''}`,
+        },
         body: JSON.stringify({ to: active.wa_contacts.wa_id, body: draft.trim() }),
       });
       if (res.ok) setDraft('');
@@ -84,7 +88,7 @@ export default function WhatsAppInbox({ supabase, inboxSecret }) {
     } finally {
       setSending(false);
     }
-  }, [draft, active, inboxSecret]);
+  }, [draft, active, supabase]);
 
   const windowOpen = active?.window_expires_at && new Date(active.window_expires_at) > new Date();
 
