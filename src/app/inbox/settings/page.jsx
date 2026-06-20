@@ -62,6 +62,7 @@ function SettingsForm() {
   return (
     <div style={S.wrap}>
       <div style={{ marginBottom: 18 }}><Logo showText className="h-9 w-9" /></div>
+      <a href="/admin" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 14, color: GOLD, textDecoration: 'none', fontSize: 14, fontWeight: 500 }}>← Back to Admin Panel</a>
       <h1 style={S.h1}>WhatsApp settings</h1>
       {FIELDS.map(([k, label, ph]) => (
         <label key={k} style={S.row}>
