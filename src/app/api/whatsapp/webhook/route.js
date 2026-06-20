@@ -87,6 +87,7 @@ async function handleInbound(db, p) {
       last_message_at: now.toISOString(),
       last_message_preview: preview,
       window_expires_at: windowExpires,
+      ...(lang ? { customer_lang: lang } : {}),
     }, { onConflict: 'contact_id' })
     .select().single();
 
