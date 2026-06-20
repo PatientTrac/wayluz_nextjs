@@ -146,7 +146,7 @@ export const AdminAuthProvider = ({ children }) => {
       const stale = (factors?.totp || []).filter((f) => f.status === 'unverified');
       for (const f of stale) { await supabase.auth.mfa.unenroll({ factorId: f.id }); }
     } catch (_) { /* ignore */ }
-    const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: `Authenticator ${Date.now()}` });
+    const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', issuer: 'WayLuz_SAS', friendlyName: `Authenticator ${Date.now()}` });
     if (error) { console.error('[AdminAuth] enroll failed:', error.message); return { error: error.message }; }
     return { factorId: data.id, qr: data.totp?.qr_code, secret: data.totp?.secret, uri: data.totp?.uri };
   };
