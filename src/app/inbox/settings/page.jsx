@@ -1,12 +1,12 @@
 'use client';
 
-// Admin-only WhatsApp settings. Enter the number + Meta API credentials here
-// instead of env vars. Secrets are write-only from the browser's perspective:
-// they're sent once, encrypted server-side, and never read back (the form shows
-// only "set / not set").
+// Admin-only WhatsApp settings (Twilio). Enter the number + Twilio credentials
+// here instead of env vars. The Auth Token is write-only from the browser's
+// perspective: sent once, encrypted server-side, never read back (the form
+// shows only "set / not set").
 //
-// Adjust the two imports to your repo's paths. Gated by ProtectedRoute AND a
-// server-side admin check (the API returns 403 for non-admins).
+// Gated by ProtectedRoute AND a server-side admin check (the API returns 403
+// for non-admins). Adjust the two imports to your repo's paths if they differ.
 
 import { useEffect, useState } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -14,18 +14,15 @@ import { supabase } from '@/lib/customSupabaseClient';
 import Logo from '@/components/Logo';
 
 const FIELDS = [
-  ['display_name', 'Display name', 'WayLuz Inversiones'],
-  ['display_number', 'Phone number', '+57 606 2488036'],
-  ['phone_number_id', 'Meta Phone Number ID', '1234567890'],
-  ['waba_id', 'WhatsApp Business Account ID', '1234567890'],
-  ['graph_version', 'Graph API version', 'v23.0'],
-  ['verify_token', 'Webhook verify token', 'any long random string'],
+  ['display_name', 'Display name', 'WayLuz Inversion'],
+  ['display_number', 'Phone number (shown in UI)', '+1 (424) 622-4568'],
+  ['from_number', 'Twilio WhatsApp From number', '+14246224568'],
+  ['account_sid', 'Twilio Account SID', 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'],
 ];
 
 function SettingsForm() {
   const [form, setForm] = useState(null);
-  const [token, setToken] = useState('');
-  const [appSecret, setAppSecret] = useState('');
+  const [authToken, setAuthToken] = useState('');
   const [status, setStatus] = useState('');
   const [forbidden, setForbidden] = useState(false);
 
@@ -50,14 +47,13 @@ function SettingsForm() {
   async function save() {
     setStatus('Saving…');
     const body = { ...form };
-    if (token) body.token = token;
-    if (appSecret) body.app_secret = appSecret;
+    if (authToken) body.auth_token = authToken;
     const res = await fetch('/api/whatsapp/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify(body),
     });
-    if (res.ok) { setStatus('Saved.'); setToken(''); setAppSecret('');
+    if (res.ok) { setStatus('Saved.'); setAuthToken('');
       const r = await fetch('/api/whatsapp/config', { headers: await authHeader() });
       if (r.ok) setForm(await r.json());
     } else setStatus('Save failed.');
@@ -75,16 +71,10 @@ function SettingsForm() {
       ))}
 
       <label style={S.row}>
-        <span style={S.label}>Access token {form.token_set && <em style={S.set}>· set</em>}</span>
-        <input style={S.input} type="password" value={token}
-          placeholder={form.token_set ? '•••••••• (leave blank to keep)' : 'paste token'}
-          onChange={(e) => setToken(e.target.value)} />
-      </label>
-      <label style={S.row}>
-        <span style={S.label}>App secret {form.app_secret_set && <em style={S.set}>· set</em>}</span>
-        <input style={S.input} type="password" value={appSecret}
-          placeholder={form.app_secret_set ? '•••••••• (leave blank to keep)' : 'paste app secret'}
-          onChange={(e) => setAppSecret(e.target.value)} />
+        <span style={S.label}>Twilio Auth Token {form.auth_token_set && <em style={S.set}>· set</em>}</span>
+        <input style={S.input} type="password" value={authToken}
+          placeholder={form.auth_token_set ? '•••••••• (leave blank to keep)' : 'paste Auth Token'}
+          onChange={(e) => setAuthToken(e.target.value)} />
       </label>
 
       <div style={S.actions}>

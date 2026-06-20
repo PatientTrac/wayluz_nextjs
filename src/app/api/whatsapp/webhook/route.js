@@ -1,105 +1,98 @@
-// /api/whatsapp/webhook  — GET verify handshake + POST inbound events.
-// Reads verify token + app secret from the DB-backed config (env fallback).
+// /api/whatsapp/webhook — Twilio inbound messages + status callbacks.
+// Twilio POSTs application/x-www-form-urlencoded and signs the request with
+// your Auth Token (x-twilio-signature). We verify, then persist to the same
+// wa_contacts / wa_conversations / wa_messages tables the inbox UI reads.
 
 import { NextResponse } from 'next/server';
-import { verifySignature } from '@/lib/whatsapp/verify';
+import { verifyTwilioSignature } from '@/lib/whatsapp/verify';
 import { supabaseAdmin } from '@/lib/whatsapp/supabaseAdmin';
 import { getWaConfig } from '@/lib/whatsapp/config';
-import { createWhatsAppClient } from '@/lib/whatsapp/client';
 
 export const runtime = 'nodejs';
 
-export async function GET(req) {
-  const { searchParams } = new URL(req.url);
-  const mode = searchParams.get('hub.mode');
-  const token = searchParams.get('hub.verify_token');
-  const challenge = searchParams.get('hub.challenge');
-  const cfg = await getWaConfig();
-  if (mode === 'subscribe' && token && token === cfg.verifyToken) {
-    return new Response(challenge, { status: 200 });
-  }
-  return new Response('Forbidden', { status: 403 });
+const TWIML_OK = '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
+function twiml() {
+  return new Response(TWIML_OK, { status: 200, headers: { 'Content-Type': 'text/xml' } });
+}
+
+// Optional health check. Twilio does NOT do a GET verification handshake.
+export async function GET() {
+  return new Response('OK', { status: 200 });
 }
 
 export async function POST(req) {
   const raw = await req.text();
-  const sig = req.headers.get('x-hub-signature-256');
+  const params = Object.fromEntries(new URLSearchParams(raw));
   const cfg = await getWaConfig();
 
-  if (!verifySignature(raw, sig, cfg.appSecret)) {
-    return new Response('Invalid signature', { status: 401 });
+  // Reconstruct the exact public URL Twilio signed. This MUST match the webhook
+  // URL set in the Twilio console (e.g. https://wayluz.com/api/whatsapp/webhook,
+  // no trailing slash).
+  const proto = req.headers.get('x-forwarded-proto') || 'https';
+  const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
+  const url = `${proto}://${host}/api/whatsapp/webhook`;
+  const sig = req.headers.get('x-twilio-signature');
+
+  if (cfg.authToken) {
+    if (!verifyTwilioSignature(cfg.authToken, url, params, sig)) {
+      return new Response('Invalid signature', { status: 403 });
+    }
+  } else {
+    console.warn('[wa webhook] no Auth Token configured yet — skipping signature check');
   }
 
-  let payload;
-  try { payload = JSON.parse(raw); } catch { return new Response('Bad JSON', { status: 400 }); }
-
   const db = supabaseAdmin();
-  let wa = null;
-  try { wa = createWhatsAppClient(cfg); } catch { /* config incomplete; skip read receipts */ }
-
   try {
-    for (const entry of payload.entry || []) {
-      for (const change of entry.changes || []) {
-        const value = change.value || {};
-        await handleInbound(db, wa, value);
-        await handleStatuses(db, value);
-      }
+    if (params.MessageStatus) {
+      await handleStatus(db, params);
+    } else if (params.From) {
+      await handleInbound(db, params);
     }
   } catch (err) {
     console.error('[wa webhook]', err);
   }
-  return NextResponse.json({ received: true });
+  return twiml();
 }
 
-async function handleInbound(db, wa, value) {
-  const messages = value.messages;
-  if (!messages?.length) return;
-  const profileName = value.contacts?.[0]?.profile?.name || null;
-  const businessNumber = value.metadata?.display_phone_number || null;
+async function handleInbound(db, p) {
+  const waId = (p.WaId || p.From || '').replace('whatsapp:', '').replace('+', '');
+  if (!waId) return;
+  const profileName = p.ProfileName || null;
+  const businessNumber = (p.To || '').replace('whatsapp:', '');
+  const numMedia = parseInt(p.NumMedia || '0', 10);
+  const type = numMedia > 0 ? (p.MediaContentType0 || 'media').split('/')[0] : 'text';
+  const body = p.Body || '';
 
-  for (const m of messages) {
-    const waId = m.from;
-    const { data: contact } = await db
-      .from('wa_contacts')
-      .upsert({ wa_id: waId, name: profileName, updated_at: new Date().toISOString() }, { onConflict: 'wa_id' })
-      .select().single();
+  const { data: contact } = await db
+    .from('wa_contacts')
+    .upsert({ wa_id: waId, name: profileName, updated_at: new Date().toISOString() }, { onConflict: 'wa_id' })
+    .select().single();
 
-    const now = new Date();
-    const windowExpires = new Date(now.getTime() + 24 * 3600 * 1000).toISOString();
-    const { data: convo } = await db
-      .from('wa_conversations')
-      .upsert({
-        contact_id: contact.id, status: 'open',
-        last_message_at: now.toISOString(), last_message_preview: previewOf(m),
-        window_expires_at: windowExpires,
-      }, { onConflict: 'contact_id' })
-      .select().single();
+  const now = new Date();
+  const windowExpires = new Date(now.getTime() + 24 * 3600 * 1000).toISOString();
+  const { data: convo } = await db
+    .from('wa_conversations')
+    .upsert({
+      contact_id: contact.id, status: 'open',
+      last_message_at: now.toISOString(),
+      last_message_preview: (body || `[${type}]`).slice(0, 120),
+      window_expires_at: windowExpires,
+    }, { onConflict: 'contact_id' })
+    .select().single();
 
-    await db.from('wa_messages').upsert({
-      conversation_id: convo.id, wa_message_id: m.id, direction: 'in',
-      type: m.type, body: textOf(m), status: 'received',
-      from_wa_id: waId, to_wa_id: businessNumber,
-      ts: new Date(Number(m.timestamp) * 1000).toISOString(),
-    }, { onConflict: 'wa_message_id' });
-
-    if (wa) wa.markRead(m.id).catch(() => {});
-  }
+  await db.from('wa_messages').upsert({
+    conversation_id: convo.id,
+    wa_message_id: p.MessageSid || p.SmsMessageSid,
+    direction: 'in', type, body,
+    media_url: numMedia > 0 ? (p.MediaUrl0 || null) : null,
+    status: 'received', from_wa_id: waId, to_wa_id: businessNumber,
+    ts: now.toISOString(),
+  }, { onConflict: 'wa_message_id' });
 }
 
-async function handleStatuses(db, value) {
-  const statuses = value.statuses;
-  if (!statuses?.length) return;
-  for (const s of statuses) {
-    await db.from('wa_messages').update({ status: s.status }).eq('wa_message_id', s.id);
-  }
+async function handleStatus(db, p) {
+  const sid = p.MessageSid || p.SmsSid;
+  if (!sid) return;
+  // Twilio statuses: queued | sent | delivered | read | failed | undelivered
+  await db.from('wa_messages').update({ status: p.MessageStatus }).eq('wa_message_id', sid);
 }
-
-function textOf(m) {
-  if (m.type === 'text') return m.text?.body || '';
-  if (m.type === 'image') return m.image?.caption || '';
-  if (m.type === 'document') return m.document?.filename || '';
-  if (m.type === 'button') return m.button?.text || '';
-  if (m.type === 'interactive') return m.interactive?.button_reply?.title || m.interactive?.list_reply?.title || '';
-  return '';
-}
-function previewOf(m) { const t = textOf(m); return t ? t.slice(0, 120) : `[${m.type}]`; }

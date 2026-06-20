@@ -1,6 +1,6 @@
 // /api/whatsapp/config — admin only.
-//   GET  -> operational fields + booleans token_set / app_secret_set (never the secret values)
-//   POST -> upsert config; secret fields are encrypted; blank secret = keep existing
+//   GET  -> operational fields + boolean auth_token_set (never the token value)
+//   POST -> upsert config; the Auth Token is encrypted; blank token = keep existing
 
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/whatsapp/adminAuth';
@@ -18,12 +18,9 @@ export async function GET(req) {
   return NextResponse.json({
     display_name: r.display_name || '',
     display_number: r.display_number || '',
-    phone_number_id: r.phone_number_id || '',
-    waba_id: r.waba_id || '',
-    graph_version: r.graph_version || 'v23.0',
-    verify_token: r.verify_token || '',
-    token_set: !!r.token_enc,
-    app_secret_set: !!r.app_secret_enc,
+    from_number: r.from_number || '',
+    account_sid: r.account_sid || '',
+    auth_token_set: !!r.auth_token_enc,
   });
 }
 
@@ -38,17 +35,14 @@ export async function POST(req) {
     id: 1,
     display_name: b.display_name ?? null,
     display_number: b.display_number ?? null,
-    phone_number_id: b.phone_number_id ?? null,
-    waba_id: b.waba_id ?? null,
-    graph_version: b.graph_version || 'v23.0',
-    verify_token: b.verify_token ?? null,
+    from_number: b.from_number ?? null,
+    account_sid: b.account_sid ?? null,
     updated_at: new Date().toISOString(),
     updated_by: gate.user.email,
   };
 
-  // Only overwrite secrets when a non-empty value is supplied.
-  if (b.token) update.token_enc = encryptSecret(b.token);
-  if (b.app_secret) update.app_secret_enc = encryptSecret(b.app_secret);
+  // Only overwrite the Auth Token when a non-empty value is supplied.
+  if (b.auth_token) update.auth_token_enc = encryptSecret(b.auth_token);
 
   const { error } = await supabaseAdmin().from('wa_config').upsert(update, { onConflict: 'id' });
   if (error) return NextResponse.json({ error: String(error.message) }, { status: 500 });

@@ -1,15 +1,20 @@
-// Verifies that an inbound webhook POST really came from Meta.
-// Meta signs the raw request body with your App Secret (sha256) and sends it
-// in the `x-hub-signature-256` header as `sha256=<hex>`.
+// Verifies that an inbound webhook POST really came from Twilio.
+// Twilio builds a string from the full request URL + the alphabetically-sorted
+// POST params (concatenated as key+value), signs it with your Auth Token using
+// HMAC-SHA1, base64-encodes it, and sends it in the `x-twilio-signature` header.
+// Docs: https://www.twilio.com/docs/usage/security#validating-requests
 
 import crypto from 'crypto';
 
-export function verifySignature(rawBody, signatureHeader, appSecret) {
-  if (!signatureHeader || !appSecret) return false;
-  const expected =
-    'sha256=' +
-    crypto.createHmac('sha256', appSecret).update(rawBody, 'utf8').digest('hex');
-  // constant-time compare
+export function verifyTwilioSignature(authToken, url, params, signatureHeader) {
+  if (!authToken || !signatureHeader) return false;
+  const data = Object.keys(params)
+    .sort()
+    .reduce((acc, k) => acc + k + params[k], url);
+  const expected = crypto
+    .createHmac('sha1', authToken)
+    .update(Buffer.from(data, 'utf8'))
+    .digest('base64');
   const a = Buffer.from(signatureHeader);
   const b = Buffer.from(expected);
   if (a.length !== b.length) return false;

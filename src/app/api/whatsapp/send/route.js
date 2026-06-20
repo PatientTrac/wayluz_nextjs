@@ -37,7 +37,7 @@ export async function POST(req) {
   let result;
   try { result = await wa.sendText(to, body); }
   catch (err) { return NextResponse.json({ error: 'send_failed', detail: String(err) }, { status: 502 }); }
-  const wamid = result?.messages?.[0]?.id;
+  const wamid = result?.sid || null;
 
   const { data: c } = await db.from('wa_contacts').upsert({ wa_id: to }, { onConflict: 'wa_id' }).select().single();
   const now = new Date().toISOString();
