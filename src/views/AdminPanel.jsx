@@ -14,12 +14,19 @@ import PriceDisplay from '@/components/PriceDisplay';
 import ImageUploadComponent from '@/components/ImageUploadComponent';
 import ImageGalleryManager from '@/components/ImageGalleryManager';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import SecurityModal from '@/components/SecurityModal';
 
 const AdminPanel = () => {
   const { t } = useLanguage();
   const { toast } = useToast();
-  const { isEditMode, toggleEditMode, isAuthenticated, isLoading, logout } = useAdminAuth();
+  const { isEditMode, toggleEditMode, isAuthenticated, isLoading, logout, needsEnrollment } = useAdminAuth();
   const navigate = useNavigate();
+  const [showSecurity, setShowSecurity] = useState(false);
+
+  // If the admin has no authenticator set up yet, nudge them to the Security panel.
+  useEffect(() => {
+    if (needsEnrollment) setShowSecurity(true);
+  }, [needsEnrollment]);
   
   const [properties, setProperties] = useState([]);
   const [activeTab, setActiveTab] = useState('list');
@@ -499,6 +506,13 @@ const AdminPanel = () => {
                 <Bug size={18} /> {showDiagnostics ? 'Hide Logs' : 'Diagnostics'}
               </Button>
               <Button
+                onClick={() => setShowSecurity(true)}
+                variant="outline"
+                className="border-[#d4af37]/50 text-[#d4af37] hover:bg-[#d4af37]/10 gap-2"
+              >
+                <ShieldCheck size={18} /> Security
+              </Button>
+              <Button
                 onClick={() => {
                   logout();
                   navigate('/admin-login');
@@ -925,6 +939,7 @@ const AdminPanel = () => {
           )}
         </div>
       </div>
+      <SecurityModal isOpen={showSecurity} onClose={() => setShowSecurity(false)} />
     </>
   );
 };
