@@ -8,7 +8,7 @@ import ContactForm from '@/components/ContactForm';
 import { useLanguage } from '@/context/LanguageContext';
 import { Button } from '@/components/ui/button';
 import VisitsCounter from '@/components/VisitsCounter';
-import { whatsappLink, PHONE_TEL, PHONE_DISPLAY } from '@/lib/contact';
+import { whatsappLink, PHONE_TEL, WHATSAPP_DISPLAY } from '@/lib/contact';
 
 const ContactPage = () => {
   const { t } = useLanguage();
@@ -23,7 +23,7 @@ const ContactPage = () => {
     {
       icon: MessageCircle,
       title: t.contact.whatsappTitle,
-      details: [t.contact.whatsappDesc, PHONE_DISPLAY],
+      details: [t.contact.whatsappDesc, WHATSAPP_DISPLAY],
       color: '#25D366',
       actions: [
         {
