@@ -1,104 +1,127 @@
 'use client';
 
+// Invite-only admin auth, on top of Supabase Auth.
+// Sign-in methods: email + password, and Google OAuth.
+// A valid Supabase session is NOT sufficient — the user's email must also be
+// on the `app_admins` allowlist. Anyone who signs in (incl. via Google) but is
+// not allowlisted is immediately signed back out. This is what makes multi-user
+// + Google safe: only emails you've approved can get in.
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { authenticateAdmin } from '@/lib/adminAuthHelper';
 
 const AdminAuthContext = createContext();
 
+// True only if `email` is on the app_admins allowlist.
+async function isAllowedAdmin(email) {
+  if (!email) return false;
+  try {
+    const { data, error } = await supabase
+      .from('app_admins')
+      .select('email')
+      .ilike('email', email) // exact email, case-insensitive (emails have no LIKE wildcards)
+      .maybeSingle();
+    if (error) {
+      console.error('[AdminAuth] allowlist check failed:', error.message);
+      return false;
+    }
+    return !!data;
+  } catch (e) {
+    console.error('[AdminAuth] allowlist check error:', e);
+    return false;
+  }
+}
+
 export const AdminAuthProvider = ({ children }) => {
-  // Main authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  
-  // UI state for edit controls
   const [isEditMode, setIsEditMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  // 'NOT_AUTHORIZED' | 'EMAIL_NOT_CONFIRMED' | 'RESET_SENT' | null
   const [authWarning, setAuthWarning] = useState(null);
-  // Admin email is public; the password/access code is never bundled in frontend code.
-  const ADMIN_EMAIL = process.env.NEXT_PUBLIC_WAYLUZ_ADMIN_EMAIL || 'admin@wayluz.com';
+
+  // Allow a session in only if its email is allowlisted; otherwise sign out.
+  const evaluateSession = async (session) => {
+    const email = session?.user?.email;
+    if (!email) {
+      setIsAuthenticated(false);
+      setIsEditMode(false);
+      return false;
+    }
+    const ok = await isAllowedAdmin(email);
+    if (!ok) {
+      await supabase.auth.signOut();
+      setIsAuthenticated(false);
+      setIsEditMode(false);
+      setAuthWarning('NOT_AUTHORIZED');
+      return false;
+    }
+    setIsAuthenticated(true);
+    return true;
+  };
 
   useEffect(() => {
-    // Check for active Supabase session on mount
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          console.log('[AdminAuth] Active Supabase session found');
-          setIsAuthenticated(true);
-          // Only auto-enable edit mode if we have a valid session
-          // We can check localStorage for preference
-          const savedEditMode = localStorage.getItem('adminEditMode');
-          setIsEditMode(savedEditMode === 'true');
-        } else {
-          console.log('[AdminAuth] No active session');
-          setIsAuthenticated(false);
-          setIsEditMode(false);
-        }
-      } catch (error) {
-        console.error('[AdminAuth] Error checking session:', error);
-      } finally {
-        setIsLoading(false);
+    let mounted = true;
+
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!mounted) return;
+      const ok = await evaluateSession(session);
+      if (mounted && ok) {
+        setIsEditMode(localStorage.getItem('adminEditMode') === 'true');
       }
-    };
+      if (mounted) setIsLoading(false);
+    })();
 
-    checkSession();
-
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session);
-      if (!session) {
-        setIsEditMode(false);
-      }
+      if (session) evaluateSession(session);
+      else { setIsAuthenticated(false); setIsEditMode(false); }
     });
 
-    return () => subscription.unsubscribe();
+    return () => { mounted = false; subscription.unsubscribe(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const login = async (passcode) => {
-    console.log('[AdminAuth] Processing login attempt...');
+  // Email + password.
+  const login = async (email, password) => {
     setAuthWarning(null);
-    
-    if (!passcode) {
-      console.warn('[AdminAuth] Login failed: Empty passcode');
+    if (!email || !password) return false;
+    const { success, warning } = await authenticateAdmin(email.trim(), password);
+    if (!success) {
+      if (warning === 'EMAIL_NOT_CONFIRMED') setAuthWarning('EMAIL_NOT_CONFIRMED');
       return false;
     }
-
-    const cleanPasscode = passcode.trim();
-    // Authenticate directly through Supabase Auth. Keep the password/access code only in Supabase Auth, not in source code.
-    // 1. Perform actual Supabase Authentication via Helper
-    try {
-      const { success, error, warning } = await authenticateAdmin(ADMIN_EMAIL, cleanPasscode);
-
-      if (success) {
-        console.log('[AdminAuth] Supabase Authentication Successful');
-        setIsAuthenticated(true);
-        setIsEditMode(true);
-        localStorage.setItem('adminEditMode', 'true');
-        return true;
-      }
-
-      // Handle Failures
-      console.log('[AdminAuth] Sign in failed:', error?.message);
-
-      if (warning === 'EMAIL_NOT_CONFIRMED') {
-         console.warn('[AdminAuth] Email not confirmed blocking login.');
-         setAuthWarning('EMAIL_NOT_CONFIRMED');
-         // We cannot force authentication without a session token from the server.
-         // Do not allow fake auth if RLS depends on real Supabase Auth.
-         // Instead, we return false and let the UI show the specific warning.
-         return false; 
-      }
-      console.error('[AdminAuth] Supabase Login Error:', error);
-      return false;
-
-    } catch (err) {
-      console.error('[AdminAuth] Unexpected auth error:', err);
-      return false;
+    const { data: { session } } = await supabase.auth.getSession();
+    const ok = await evaluateSession(session);
+    if (ok) {
+      setIsEditMode(true);
+      localStorage.setItem('adminEditMode', 'true');
     }
+    return ok;
+  };
+
+  // Google OAuth — redirects to Google, returns to /admin; the allowlist gate
+  // runs automatically on return via onAuthStateChange.
+  const loginWithGoogle = async () => {
+    setAuthWarning(null);
+    const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/admin` : undefined;
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
+    if (error) { console.error('[AdminAuth] Google sign-in error:', error.message); return false; }
+    return true;
+  };
+
+  // Password reset email (requires SMTP configured in Supabase to actually send).
+  const resetPassword = async (email) => {
+    setAuthWarning(null);
+    if (!email) return false;
+    const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/admin-login` : undefined;
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
+    if (error) { console.error('[AdminAuth] reset error:', error.message); return false; }
+    setAuthWarning('RESET_SENT');
+    return true;
   };
 
   const logout = async () => {
-    console.log('[AdminAuth] Logging out');
     await supabase.auth.signOut();
     setIsEditMode(false);
     setIsAuthenticated(false);
@@ -107,10 +130,10 @@ export const AdminAuthProvider = ({ children }) => {
   };
 
   const toggleEditMode = () => {
-    setIsEditMode(prev => {
-      const newVal = !prev;
-      localStorage.setItem('adminEditMode', String(newVal));
-      return newVal;
+    setIsEditMode((prev) => {
+      const v = !prev;
+      localStorage.setItem('adminEditMode', String(v));
+      return v;
     });
   };
 
@@ -120,15 +143,9 @@ export const AdminAuthProvider = ({ children }) => {
   };
 
   return (
-    <AdminAuthContext.Provider value={{ 
-      isAuthenticated, 
-      isEditMode, 
-      isLoading,
-      authWarning,
-      login, 
-      logout, 
-      toggleEditMode,
-      setEditMode 
+    <AdminAuthContext.Provider value={{
+      isAuthenticated, isEditMode, isLoading, authWarning,
+      login, loginWithGoogle, resetPassword, logout, toggleEditMode, setEditMode,
     }}>
       {children}
     </AdminAuthContext.Provider>
@@ -137,8 +154,6 @@ export const AdminAuthProvider = ({ children }) => {
 
 export const useAdminAuth = () => {
   const context = useContext(AdminAuthContext);
-  if (!context) {
-    throw new Error('useAdminAuth must be used within an AdminAuthProvider');
-  }
+  if (!context) throw new Error('useAdminAuth must be used within an AdminAuthProvider');
   return context;
 };
