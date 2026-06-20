@@ -12,6 +12,15 @@ export default function InboxPage() {
   return (
     <ProtectedRoute>
       <div style={{ padding: 24 }}>
+        <a
+          href="/admin"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16,
+            color: '#d4af37', textDecoration: 'none', fontSize: 14, fontWeight: 500,
+          }}
+        >
+          ← Back to Admin Panel
+        </a>
         <WhatsAppInbox
           supabase={supabase}
           branding={{

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { Plus, Trash2, Edit2, Save, Film, EyeOff, ShieldCheck, Loader2, LogOut, AlertCircle, CheckCircle2, Bug, PlayCircle } from 'lucide-react';
+import { Plus, Trash2, Edit2, Save, Film, EyeOff, ShieldCheck, Loader2, LogOut, AlertCircle, CheckCircle2, Bug, PlayCircle, MessageSquare, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -477,6 +477,20 @@ const AdminPanel = () => {
               <p className="text-gray-400 mt-2">Manage your property portfolio</p>
             </div>
             <div className="flex gap-2">
+              <Button
+                onClick={() => navigate('/inbox')}
+                variant="outline"
+                className="border-green-500/50 text-green-500 hover:bg-green-500/10 gap-2"
+              >
+                <MessageSquare size={18} /> Inbox
+              </Button>
+              <Button
+                onClick={() => navigate('/inbox/settings')}
+                variant="outline"
+                className="border-[#d4af37]/50 text-[#d4af37] hover:bg-[#d4af37]/10 gap-2"
+              >
+                <Settings size={18} /> Inbox Settings
+              </Button>
               <Button
                 onClick={() => setShowDiagnostics(!showDiagnostics)}
                 variant="outline"
