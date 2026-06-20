@@ -144,6 +144,12 @@ const SecurityModal = ({ isOpen, onClose }) => {
               </div>
             </section>
           </div>
+
+          <div className="flex justify-end p-4 border-t border-[#d4af37]/20 bg-[#0f0f0f]">
+            <Button onClick={onClose} variant="outline" className="border-white/15 text-gray-300 hover:bg-white/5 gap-2">
+              <X size={16} /> Close
+            </Button>
+          </div>
         </motion.div>
       </div>
     </AnimatePresence>
