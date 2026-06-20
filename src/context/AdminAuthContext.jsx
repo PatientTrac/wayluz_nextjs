@@ -68,7 +68,7 @@ export const AdminAuthProvider = ({ children }) => {
       if (!mounted) return;
       const ok = await evaluateSession(session);
       if (mounted && ok) {
-        setIsEditMode(localStorage.getItem('adminEditMode') === 'true');
+        setIsEditMode(sessionStorage.getItem('adminEditMode') === 'true');
       }
       if (mounted) setIsLoading(false);
     })();
@@ -95,7 +95,7 @@ export const AdminAuthProvider = ({ children }) => {
     const ok = await evaluateSession(session);
     if (ok) {
       setIsEditMode(true);
-      localStorage.setItem('adminEditMode', 'true');
+      sessionStorage.setItem('adminEditMode', 'true');
     }
     return ok;
   };
@@ -125,21 +125,21 @@ export const AdminAuthProvider = ({ children }) => {
     await supabase.auth.signOut();
     setIsEditMode(false);
     setIsAuthenticated(false);
-    localStorage.removeItem('adminEditMode');
+    sessionStorage.removeItem('adminEditMode');
     setAuthWarning(null);
   };
 
   const toggleEditMode = () => {
     setIsEditMode((prev) => {
       const v = !prev;
-      localStorage.setItem('adminEditMode', String(v));
+      sessionStorage.setItem('adminEditMode', String(v));
       return v;
     });
   };
 
   const setEditMode = (value) => {
     setIsEditMode(value);
-    localStorage.setItem('adminEditMode', String(value));
+    sessionStorage.setItem('adminEditMode', String(value));
   };
 
   return (

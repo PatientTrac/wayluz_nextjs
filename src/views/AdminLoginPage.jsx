@@ -14,8 +14,7 @@ const AdminLoginPage = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const { login, loginWithGoogle, resetPassword, isAuthenticated, authWarning } = useAdminAuth();
+  const { login, resetPassword, isAuthenticated, authWarning } = useAdminAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -39,13 +38,6 @@ const AdminLoginPage = () => {
       setPassword('');
     }
     setIsSubmitting(false);
-  };
-
-  const handleGoogle = async () => {
-    setError('');
-    setGoogleLoading(true);
-    await loginWithGoogle(); // redirects to Google
-    setGoogleLoading(false);
   };
 
   const handleForgot = async () => {
@@ -91,7 +83,7 @@ const AdminLoginPage = () => {
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Email confirmation required</AlertTitle>
               <AlertDescription className="text-xs mt-1">
-                Your credentials are correct, but the email isn't confirmed. Confirm it via the link in your inbox, or in Supabase → Authentication → Users.
+                Your credentials are correct, but the email isn't confirmed. Confirm it in Supabase → Authentication → Users.
               </AlertDescription>
             </Alert>
           )}
@@ -153,31 +145,6 @@ const AdminLoginPage = () => {
               {isSubmitting ? <Loader2 className="animate-spin w-5 h-5" /> : <span className="flex items-center justify-center gap-2">Sign in <ArrowRight size={18} /></span>}
             </Button>
           </form>
-
-          <div className="flex items-center gap-3 my-6">
-            <div className="flex-1 h-px bg-white/10" />
-            <span className="text-gray-600 text-xs uppercase tracking-wider">or</span>
-            <div className="flex-1 h-px bg-white/10" />
-          </div>
-
-          <button
-            type="button"
-            onClick={handleGoogle}
-            disabled={googleLoading}
-            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 text-gray-800 font-medium py-3.5 rounded-lg transition-all disabled:opacity-60"
-          >
-            {googleLoading ? <Loader2 className="animate-spin w-5 h-5" /> : (
-              <>
-                <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-                  <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z"/>
-                  <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/>
-                  <path fill="#FBBC05" d="M3.97 10.72a5.41 5.41 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"/>
-                  <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/>
-                </svg>
-                Continue with Google
-              </>
-            )}
-          </button>
 
           <div className="mt-8 pt-6 border-t border-white/5 text-center">
             <Button variant="link" className="text-gray-500 hover:text-white text-sm transition-colors" onClick={() => navigate('/')}>

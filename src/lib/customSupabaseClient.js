@@ -16,14 +16,20 @@ if (!supabaseUrl || !supabaseKey) {
   );
 }
 
+const isBrowser = typeof window !== 'undefined';
+
 const customSupabaseClient = createClient(
   supabaseUrl || 'https://example.supabase.co',
   supabaseKey || 'missing-supabase-browser-key',
   {
     auth: {
+      // Store the session in sessionStorage (not localStorage) so the admin is
+      // logged out automatically when the browser/tab is closed. No persistent
+      // "still logged in days later" sessions.
+      storage: isBrowser ? window.sessionStorage : undefined,
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: true,
+      detectSessionInUrl: true, // still needed for the password-reset link flow
     },
   }
 );
