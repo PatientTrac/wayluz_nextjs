@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { verifyTwilioSignature } from '@/lib/whatsapp/verify';
 import { supabaseAdmin } from '@/lib/whatsapp/supabaseAdmin';
 import { getWaConfig } from '@/lib/whatsapp/config';
+import { translate, ADMIN_LANG } from '@/lib/whatsapp/translate';
 
 export const runtime = 'nodejs';
 
@@ -63,6 +64,15 @@ async function handleInbound(db, p) {
   const type = numMedia > 0 ? (p.MediaContentType0 || 'media').split('/')[0] : 'text';
   const body = p.Body || '';
 
+  // Translate the customer's message to English for the agent. Non-blocking:
+  // if DeepL is off or errors, body_en stays null and the UI shows the original.
+  let body_en = null, lang = null;
+  if (type === 'text' && body.trim()) {
+    const tr = await translate(body, ADMIN_LANG);
+    if (tr) { body_en = tr.text; lang = tr.detectedSourceLang; }
+  }
+  const preview = (body_en || body || `[${type}]`).slice(0, 120);
+
   const { data: contact } = await db
     .from('wa_contacts')
     .upsert({ wa_id: waId, name: profileName, updated_at: new Date().toISOString() }, { onConflict: 'wa_id' })
@@ -75,7 +85,7 @@ async function handleInbound(db, p) {
     .upsert({
       contact_id: contact.id, status: 'open',
       last_message_at: now.toISOString(),
-      last_message_preview: (body || `[${type}]`).slice(0, 120),
+      last_message_preview: preview,
       window_expires_at: windowExpires,
     }, { onConflict: 'contact_id' })
     .select().single();
@@ -83,7 +93,7 @@ async function handleInbound(db, p) {
   await db.from('wa_messages').upsert({
     conversation_id: convo.id,
     wa_message_id: p.MessageSid || p.SmsMessageSid,
-    direction: 'in', type, body,
+    direction: 'in', type, body, body_en, lang,
     media_url: numMedia > 0 ? (p.MediaUrl0 || null) : null,
     status: 'received', from_wa_id: waId, to_wa_id: businessNumber,
     ts: now.toISOString(),

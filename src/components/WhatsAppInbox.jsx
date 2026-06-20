@@ -107,12 +107,21 @@ export default function WhatsAppInbox({ supabase, branding = {} }) {
           <>
             <header style={S.threadHead}>{active.wa_contacts?.name || active.wa_contacts?.wa_id}</header>
             <div style={S.messages}>
-              {messages.map((m) => (
-                <div key={m.id} style={{ ...S.bubble, ...(m.direction === 'out' ? S.out : S.in) }}>
-                  <div>{m.body}</div>
-                  <div style={S.meta}>{new Date(m.ts).toLocaleTimeString()} {m.direction === 'out' ? `· ${m.status || ''}` : ''}</div>
-                </div>
-              ))}
+              {messages.map((m) => {
+                const primary = m.body_en || m.body;
+                const original = (m.body_en && m.body && m.body_en.trim() !== m.body.trim()) ? m.body : null;
+                return (
+                  <div key={m.id} style={{ ...S.bubble, ...(m.direction === 'out' ? S.out : S.in) }}>
+                    <div>{primary}</div>
+                    {original && (
+                      <div style={S.translated}>
+                        {(m.direction === 'out' ? 'sent' : 'original')}{m.lang ? ` · ${m.lang}` : ''}: {original}
+                      </div>
+                    )}
+                    <div style={S.meta}>{new Date(m.ts).toLocaleTimeString()} {m.direction === 'out' ? `· ${m.status || ''}` : ''}</div>
+                  </div>
+                );
+              })}
               <div ref={endRef} />
             </div>
             <div style={S.composer}>
@@ -120,7 +129,7 @@ export default function WhatsAppInbox({ supabase, branding = {} }) {
                 <>
                   <input value={draft} onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && send()}
-                    placeholder="Type a reply…" style={S.input} />
+                    placeholder="Type in English — sent in Spanish…" style={S.input} />
                   <button onClick={send} disabled={sending} style={S.sendBtn}>{sending ? '…' : 'Send'}</button>
                 </>
               ) : (
@@ -153,6 +162,7 @@ function makeStyles(accent, bg) {
     bubble: { maxWidth: '70%', padding: '8px 12px', borderRadius: 12, fontSize: 14 },
     in: { alignSelf: 'flex-start', background: '#1d1d22' },
     out: { alignSelf: 'flex-end', background: hexToRgba(accent, 0.13), border: `1px solid ${hexToRgba(accent, 0.27)}` },
+    translated: { fontSize: 12, color: '#9aa', marginTop: 5, paddingTop: 5, borderTop: '1px dashed rgba(255,255,255,0.12)', fontStyle: 'italic' },
     meta: { fontSize: 11, color: '#888', marginTop: 4, textAlign: 'right' },
     composer: { display: 'flex', gap: 8, padding: 12, borderTop: `1px solid ${hexToRgba(accent, 0.2)}` },
     input: { flex: 1, background: '#16161a', border: `1px solid ${hexToRgba(accent, 0.2)}`, borderRadius: 8, padding: '10px 12px', color: '#eee' },

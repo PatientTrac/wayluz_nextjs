@@ -6,6 +6,7 @@ import { getSessionUser } from '@/lib/whatsapp/adminAuth';
 import { getWaConfig } from '@/lib/whatsapp/config';
 import { createWhatsAppClient } from '@/lib/whatsapp/client';
 import { supabaseAdmin } from '@/lib/whatsapp/supabaseAdmin';
+import { translate, CUSTOMER_LANG } from '@/lib/whatsapp/translate';
 
 export const runtime = 'nodejs';
 
@@ -34,19 +35,27 @@ export async function POST(req) {
   try { wa = createWhatsAppClient(await getWaConfig()); }
   catch (e) { return NextResponse.json({ error: 'not_configured', detail: String(e) }, { status: 503 }); }
 
+  // The agent types in English (`body`). Translate to the customer's language
+  // and send that. If DeepL is off/fails, send the original text unchanged.
+  const adminText = body;
+  let sentText = adminText;
+  let lang = 'EN';
+  const tr = await translate(adminText, CUSTOMER_LANG);
+  if (tr) { sentText = tr.text; lang = CUSTOMER_LANG.split('-')[0].toUpperCase(); }
+
   let result;
-  try { result = await wa.sendText(to, body); }
+  try { result = await wa.sendText(to, sentText); }
   catch (err) { return NextResponse.json({ error: 'send_failed', detail: String(err) }, { status: 502 }); }
   const wamid = result?.sid || null;
 
   const { data: c } = await db.from('wa_contacts').upsert({ wa_id: to }, { onConflict: 'wa_id' }).select().single();
   const now = new Date().toISOString();
   const { data: convo } = await db.from('wa_conversations')
-    .upsert({ contact_id: c.id, status: 'open', last_message_at: now, last_message_preview: body.slice(0, 120) },
+    .upsert({ contact_id: c.id, status: 'open', last_message_at: now, last_message_preview: adminText.slice(0, 120) },
             { onConflict: 'contact_id' }).select().single();
   await db.from('wa_messages').insert({
     conversation_id: convo.id, wa_message_id: wamid, direction: 'out',
-    type: 'text', body, status: 'sent', to_wa_id: to, ts: now,
+    type: 'text', body: sentText, body_en: adminText, lang, status: 'sent', to_wa_id: to, ts: now,
   });
 
   return NextResponse.json({ ok: true, wamid });
