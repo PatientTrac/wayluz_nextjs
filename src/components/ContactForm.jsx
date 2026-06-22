@@ -6,12 +6,21 @@ import { useToast } from '@/components/ui/use-toast';
 import { Send, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { supabase } from '@/lib/customSupabaseClient';
+import { properties as staticProperties } from '@/data/properties';
+
+// Normalize the static reference list so the dropdown is never empty even when
+// the Supabase `properties` table is unreachable or not yet populated.
+const STATIC_PROPERTY_OPTIONS = (staticProperties || []).map((p) => ({
+  id: p.id,
+  name: p.title || p.name,
+  location: p.location,
+}));
 
 const ContactForm = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [properties, setProperties] = useState([]);
+  const [properties, setProperties] = useState(STATIC_PROPERTY_OPTIONS);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -31,8 +40,8 @@ const ContactForm = () => {
         .select('id, name, location')
         .order('created_at', { ascending: false });
 
-      if (!error && isMounted) {
-        setProperties(data || []);
+      if (!error && isMounted && Array.isArray(data) && data.length > 0) {
+        setProperties(data);
       }
     };
 
