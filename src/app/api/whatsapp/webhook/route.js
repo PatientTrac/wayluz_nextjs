@@ -19,6 +19,11 @@ export const runtime = 'nodejs';
 
 const AUTO_REPLY_ENABLED = (process.env.WA_AUTOREPLY_ENABLED || 'true') !== 'false';
 
+// When set, the auto-reply is sent as a Twilio Content template carrying a
+// tappable "View properties" URL button. Until then we send the bilingual
+// text below (link is auto-linked by WhatsApp). No code change to switch.
+const AUTO_REPLY_CONTENT_SID = process.env.WA_AUTOREPLY_CONTENT_SID || null;
+
 // Bilingual (ES first — leads are Colombia-based) auto-reply. Override with env.
 const AUTO_REPLY_TEXT =
   process.env.WA_AUTOREPLY_TEXT ||
@@ -135,11 +140,13 @@ async function sendAutoReply(db, { waId, profileName, body, convoId, cfg }) {
   // 1) WhatsApp reply (free-form, valid inside the 24h window the inbound msg opened).
   try {
     const wa = createWhatsAppClient(cfg);
-    const result = await wa.sendText(waId, AUTO_REPLY_TEXT);
+    const result = AUTO_REPLY_CONTENT_SID
+      ? await wa.sendTemplate(waId, AUTO_REPLY_CONTENT_SID) // tappable button
+      : await wa.sendText(waId, AUTO_REPLY_TEXT);           // inline link
     await db.from('wa_messages').insert({
       conversation_id: convoId,
       wa_message_id: result?.sid || null,
-      direction: 'out', type: 'text',
+      direction: 'out', type: AUTO_REPLY_CONTENT_SID ? 'template' : 'text',
       body: AUTO_REPLY_TEXT, body_en: AUTO_REPLY_TEXT, lang: 'ES',
       status: 'sent', to_wa_id: waId, ts: new Date().toISOString(),
     });
