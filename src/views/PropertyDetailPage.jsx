@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { useParams, Link } from '@/lib/routerAdapter';
 import { motion } from 'framer-motion';
-import { Bed, Bath, Maximize, MapPin, Calendar, Home as HomeIcon, ArrowLeft, Phone, Mail, RefreshCw, AlertTriangle, MessageCircle } from 'lucide-react';
+import { Bed, Bath, Maximize, MapPin, Calendar, Home as HomeIcon, ArrowLeft, Phone, Mail, RefreshCw, AlertTriangle, MessageCircle, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import PropertyGallery from '@/components/PropertyGallery';
@@ -13,6 +13,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { useLanguage } from '@/context/LanguageContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import VideoGallerySection from '@/components/finca/VideoGallerySection';
+import PropertyCameras from '@/components/PropertyCameras';
+import { camerasFor } from '@/lib/videoloft/cameras';
 import { createSlug } from '@/lib/slugUtils';
 import VisitsCounter from '@/components/VisitsCounter';
 import { whatsappLink, PHONE_TEL } from '@/lib/contact';
@@ -34,10 +36,10 @@ const PropertyDetailPage = () => {
   const fetchPropertyBySlug = async () => {
     setLoading(true);
     setFetchError(null);
-    
+
     try {
       console.log(`[PropertyDetailPage] Fetching property for slug: ${slug}...`);
-      
+
       // Step 1: Fetch all properties (minimal fields) to find the one matching the slug
       // We do this because we don't have a 'slug' column in the database yet
       const { data: allProperties, error: listError } = await supabase
@@ -78,12 +80,12 @@ const PropertyDetailPage = () => {
 
       // Handle Image Logic: Merge featured_image_url with images array
       let galleryImages = [];
-      
+
       // 1. Add featured image first if it exists
       if (data.featured_image_url) {
         galleryImages.push(data.featured_image_url);
       }
-      
+
       // 2. Add rest of images
       if (Array.isArray(data.images)) {
         galleryImages = [...galleryImages, ...data.images];
@@ -93,7 +95,7 @@ const PropertyDetailPage = () => {
       }
 
       // 3. Deduplicate images based on URL string
-      const uniqueImages = [...new Set(galleryImages.map(img => 
+      const uniqueImages = [...new Set(galleryImages.map(img =>
         typeof img === 'object' ? img?.url || JSON.stringify(img) : img
       ))].map(urlOrStr => {
          // Attempt to restore object if it was stringified for dedupe
@@ -120,9 +122,10 @@ const PropertyDetailPage = () => {
         type: data.type || 'Property',
         amenities: data.amenities || [],
         images: uniqueImages.length > 0 ? uniqueImages : [],
-        videos: Array.isArray(data.videos) ? data.videos : []
+        videos: Array.isArray(data.videos) ? data.videos : [],
+        videoloftProperty: data.videoloft_property || null
       };
-      
+
       // If this property is backed by a Cloudinary folder, pull its gallery live.
       // Add a text column `cloudinary_folder` to the properties table and set it
       // to the folder name (e.g. "CASA WAYNE GRANDE"). When empty, stored images are used.
@@ -150,14 +153,14 @@ const PropertyDetailPage = () => {
 
     } catch (error) {
       console.error("PropertyDetailPage: Error loading property:", error);
-      
+
       let msg = error.message;
       if (error.code === '22P02') msg = "Invalid Property format.";
       if (error.code === 'PGRST116') msg = "Property not found.";
       if (msg === "Property not found.") msg = "We couldn't find a property matching that address.";
-      
+
       setFetchError(msg);
-      
+
       toast({
         title: "Error Loading Property",
         description: msg,
@@ -178,10 +181,10 @@ const PropertyDetailPage = () => {
            <div className="mb-6">
              <Skeleton className="h-10 w-32 mb-4 bg-gray-800" />
            </div>
-           
+
            {/* Skeleton Gallery */}
            <Skeleton className="w-full h-[60vh] rounded-xl mb-12 bg-gray-800" />
-           
+
            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
              <div className="lg:col-span-2 space-y-8">
                {/* Skeleton Title & Price */}
@@ -189,7 +192,7 @@ const PropertyDetailPage = () => {
                  <Skeleton className="h-12 w-3/4 bg-gray-800" />
                  <Skeleton className="h-8 w-1/2 bg-gray-800" />
                </div>
-               
+
                {/* Skeleton Stats */}
                <div className="grid grid-cols-4 gap-4">
                  <Skeleton className="h-24 w-full bg-gray-800" />
@@ -197,7 +200,7 @@ const PropertyDetailPage = () => {
                  <Skeleton className="h-24 w-full bg-gray-800" />
                  <Skeleton className="h-24 w-full bg-gray-800" />
                </div>
-               
+
                {/* Skeleton Text */}
                <div className="space-y-4">
                  <Skeleton className="h-4 w-full bg-gray-800" />
@@ -205,7 +208,7 @@ const PropertyDetailPage = () => {
                  <Skeleton className="h-4 w-2/3 bg-gray-800" />
                </div>
              </div>
-             
+
              {/* Skeleton Sidebar */}
              <div className="lg:col-span-1">
                <Skeleton className="h-96 w-full rounded-xl bg-gray-800" />
@@ -283,7 +286,7 @@ const PropertyDetailPage = () => {
                         <span>{property.location}</span>
                       </div>
                     </div>
-                    
+
                     <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-6">
                       <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight leading-tight">
                         {property.name}
@@ -302,14 +305,14 @@ const PropertyDetailPage = () => {
                       <div className="text-3xl font-bold text-white mb-1">{property.bedrooms}</div>
                       <div className="text-gray-400 text-sm font-medium uppercase tracking-wider">{t.properties.beds}</div>
                     </div>
-                    
+
                     {/* Bathrooms */}
                     <div className="bg-[#1a1a1a] border border-[#d4af37]/20 hover:border-[#d4af37]/50 transition-colors rounded-xl p-5 text-center group">
                       <Bath size={28} className="mx-auto mb-3 text-[#d4af37] group-hover:scale-110 transition-transform" />
                       <div className="text-3xl font-bold text-white mb-1">{property.bathrooms}</div>
                       <div className="text-gray-400 text-sm font-medium uppercase tracking-wider">{t.properties.baths}</div>
                     </div>
-                    
+
                     {/* Area */}
                     <div className="bg-[#1a1a1a] border border-[#d4af37]/20 hover:border-[#d4af37]/50 transition-colors rounded-xl p-5 text-center group">
                       <Maximize size={28} className="mx-auto mb-3 text-[#d4af37] group-hover:scale-110 transition-transform" />
@@ -318,7 +321,7 @@ const PropertyDetailPage = () => {
                       </div>
                       <div className="text-gray-400 text-sm font-medium uppercase tracking-wider">{t.properties.size}</div>
                     </div>
-                    
+
                     {/* Year Built */}
                     <div className="bg-[#1a1a1a] border border-[#d4af37]/20 hover:border-[#d4af37]/50 transition-colors rounded-xl p-5 text-center group">
                       <Calendar size={28} className="mx-auto mb-3 text-[#d4af37] group-hover:scale-110 transition-transform" />
@@ -363,6 +366,23 @@ const PropertyDetailPage = () => {
                   {/* Videos Section */}
                   <VideoGallerySection videos={property.videos} />
 
+                  {/* Live Cameras Section — only for properties tagged with a videoloft set */}
+                  {property.videoloftProperty && (
+                    <div className="mt-12">
+                      <h2 className="text-2xl font-bold mb-2 flex items-center gap-3 text-white">
+                        <Video className="text-[#d4af37]" size={24} />
+                        Cámaras en vivo
+                      </h2>
+                      <p className="text-gray-400 mb-6">
+                        Vistas en tiempo real de la propiedad. Toca una cámara para ver el video en vivo.
+                      </p>
+                      <PropertyCameras
+                        property={property.videoloftProperty}
+                        cameras={camerasFor(property.videoloftProperty)}
+                      />
+                    </div>
+                  )}
+
                 </motion.div>
               </div>
 
@@ -378,7 +398,7 @@ const PropertyDetailPage = () => {
                   <div className="bg-[#1a1a1a] border-2 border-[#d4af37]/30 rounded-xl p-6 shadow-2xl shadow-black/50">
                     <h3 className="text-xl font-bold mb-2 text-[#d4af37]">{t.propertyDetail.interested}</h3>
                     <p className="text-gray-400 text-sm mb-6">Contact our agents to schedule a private viewing.</p>
-                    
+
                     <div className="space-y-3">
                       <a
                         href={whatsappLink(`Hi WayLuz, I'm interested in "${property.name}". Could you share more details?`)}
