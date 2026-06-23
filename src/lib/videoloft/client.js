@@ -18,8 +18,12 @@ export function isVideoloftHost(host) {
 }
 
 let _session = null;
-// Per-uidd cache so cameras can NEVER share a logger/streamname.
-const _devices = new Map(); // uidd -> { value, at, promise }
+
+// Per-uidd device cache. Each entry is resolved from ONE shared batched fetch,
+// so cameras can never end up with another camera's logger/streamname.
+const _devices = new Map(); // uidd -> { logger, wowza, streamname }
+let _devicesAt = 0;
+let _allDevicesPromise = null; // single in-flight batched lookup
 
 const TOKEN_TTL_MS = 15 * 60 * 1000;
 const DEVICE_TTL_MS = 10 * 60 * 1000;
@@ -82,34 +86,65 @@ export async function getSession() {
 }
 
 /**
- * Resolve logger / wowza / streamname for ONE uidd, cached per-uidd (~10 min).
- * Each uidd has its own cache slot and in-flight promise — concurrent lookups
- * for different cameras never collide (this was the same-image bug).
+ * Resolve EVERY device the account can see in one batched /devices + viewerInfo
+ * pass, cached ~10 min. One request, correctly keyed per camera — no races, no
+ * cross-camera bleed. Returns the full uidd -> {logger,wowza,streamname} map.
  */
-export async function resolveDevice(uidd) {
+async function ensureAllDevices() {
   const now = Date.now();
-  const slot = _devices.get(uidd);
-  if (slot?.value && now - slot.at < DEVICE_TTL_MS) return slot.value;
-  if (slot?.promise) return slot.promise;
+  if (_devices.size > 0 && now - _devicesAt < DEVICE_TTL_MS) return _devices;
+  if (_allDevicesPromise) return _allDevicesPromise;
 
-  const promise = (async () => {
+  _allDevicesPromise = (async () => {
     const s = await getSession();
-    const res = await fetch(
-      `${s.authenticator}/devices/viewerInfo?uidd=${encodeURIComponent(uidd)}`,
-      { headers: authHeader(s.authToken) }
-    );
-    const result = res.ok ? (await res.json()).result || {} : {};
-    const [uid, devId] = uidd.split(".");
-    const dev = result[uid]?.devices?.[devId];
-    const value = dev
-      ? { logger: dev.logger, wowza: dev.wowza, streamname: dev.streamname }
-      : null;
-    _devices.set(uidd, { value, at: Date.now(), promise: null });
-    return value;
+
+    // 1) enumerate all uidds via the multi-user /devices endpoint
+    const dRes = await fetch(`${s.authenticator}/devices`, {
+      headers: authHeader(s.authToken),
+    });
+    const dResult = dRes.ok ? (await dRes.json()).result || {} : {};
+    const uidds = [];
+    for (const group of Object.values(dResult)) {
+      if (!group?.devices) continue;
+      for (const [devId, dev] of Object.entries(group.devices)) {
+        uidds.push(dev.uidd || `${devId}`);
+      }
+    }
+
+    // 2) resolve logger/wowza/streamname for all of them, in chunks of 20
+    const map = new Map();
+    for (let i = 0; i < uidds.length; i += 20) {
+      const batch = uidds.slice(i, i + 20);
+      const qs = batch.map((u) => `uidd=${encodeURIComponent(u)}`).join("&");
+      const vRes = await fetch(`${s.authenticator}/devices/viewerInfo?${qs}`, {
+        headers: authHeader(s.authToken),
+      });
+      const vResult = vRes.ok ? (await vRes.json()).result || {} : {};
+      for (const group of Object.values(vResult)) {
+        if (!group.devices) continue;
+        for (const dev of Object.values(group.devices)) {
+          map.set(dev.uidd, {
+            logger: dev.logger,
+            wowza: dev.wowza,
+            streamname: dev.streamname,
+          });
+        }
+      }
+    }
+
+    _devices.clear();
+    for (const [k, v] of map) _devices.set(k, v);
+    _devicesAt = Date.now();
+    _allDevicesPromise = null;
+    return _devices;
   })();
 
-  _devices.set(uidd, { value: slot?.value ?? null, at: slot?.at ?? 0, promise });
-  return promise;
+  return _allDevicesPromise;
+}
+
+export async function resolveDevice(uidd) {
+  const map = await ensureAllDevices();
+  return map.get(uidd) || null;
 }
 
 export async function getStatus(uidd) {
